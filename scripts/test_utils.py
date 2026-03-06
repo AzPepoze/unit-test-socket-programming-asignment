@@ -4,8 +4,6 @@ import time
 import hashlib
 import json
 from pathlib import Path
-import threading
-import queue
 
 # ANSI color codes
 GREEN = "\033[0;32m"
