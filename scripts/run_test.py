@@ -96,8 +96,8 @@ def setup_network_conditions(test_num):
 def cleanup_test_files():
     """Clean up previous test files"""
     print("Cleaning up previous test files...")
-    docker_exec("urft_test", "sh -c 'rm -rf /app/recived/*'", capture=False)
-    docker_exec("urft_test", "sh -c 'rm -rf /app/test/*'", capture=False)
+    docker_exec("urft_test", ["sh", "-c", "rm -rf /app/recived/*.bin"], capture=False)
+    docker_exec("urft_test", ["sh", "-c", "rm -rf /app/test/*.bin"], capture=False)
 
 
 def create_test_file(size_mb):
@@ -152,11 +152,9 @@ def calculate_md5(container, filepath):
 def restart_server():
     """Restart the server process"""
     print("Restarting server...")
-    # Kill any existing server process
-    docker_exec("urft_server", "pkill -f urft_server.py", capture=False)
+    # Note: Server should be running via docker-compose command
+    # No need to restart for each test
     time.sleep(1)
-    # Server is started by docker-compose, will restart automatically
-    time.sleep(2)
 
 
 def run_single_test(test_num, custom_file=None):
@@ -201,20 +199,60 @@ def run_single_test(test_num, custom_file=None):
     print(f"Original MD5:  {original_md5}")
 
     # Run client transfer
-    print("Starting file transfer...")
+    print("\n" + colored("=" * 70, YELLOW))
+    print(colored("Starting file transfer...", YELLOW))
+    print(colored("=" * 70, YELLOW))
+
     client_cmd = ["python", "/app/src/urft_client.py", original_path, CONFIG["docker"]["server_ip"], str(CONFIG["server"]["port"])]
 
-    # Start client in background
+    # Start client with output visible
     try:
-        proc = subprocess.Popen(["docker", "exec", "urft_client"] + client_cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
+        print(colored("\n[CLIENT OUTPUT]", GREEN))
+        print("-" * 70)
 
-        # Wait for timeout
+        proc = subprocess.Popen(["docker", "exec", "urft_client"] + client_cmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True, bufsize=1)
+
+        # Read output in real-time
         print(f"Waiting for transfer (timeout: {timeout}s)...")
+        start_time = time.time()
+
         try:
-            proc.wait(timeout=timeout)
-        except subprocess.TimeoutExpired:
+            while True:
+                # Check if process finished
+                if proc.poll() is not None:
+                    break
+
+                # Check timeout
+                if time.time() - start_time > timeout:
+                    proc.kill()
+                    print(colored("\n⚠ Transfer timed out", YELLOW))
+                    break
+
+                # Read output line by line
+                line = proc.stdout.readline()
+                if line:
+                    print(line.rstrip())
+                else:
+                    time.sleep(0.1)
+
+        except KeyboardInterrupt:
             proc.kill()
-            print(colored("Transfer timed out", YELLOW))
+            raise
+
+        # Get any remaining output
+        remaining = proc.stdout.read()
+        if remaining:
+            print(remaining.rstrip())
+
+        print("-" * 70)
+
+        # Show server logs
+        print(colored("\n[SERVER OUTPUT]", GREEN))
+        print("-" * 70)
+        success, server_logs, _ = run_command(["docker", "logs", "--tail", "50", "urft_server"], capture=True)
+        if success and server_logs:
+            print(server_logs)
+        print("-" * 70)
 
     except Exception as e:
         print(colored(f"Error running client: {e}", RED))
@@ -224,29 +262,35 @@ def run_single_test(test_num, custom_file=None):
     time.sleep(2)
 
     # Verify file transfer
-    print("\nVerifying file transfer...")
+    print(colored("\n" + "=" * 70, YELLOW))
+    print(colored("Verifying file transfer...", YELLOW))
+    print(colored("=" * 70, YELLOW))
 
     # List received files
     success, files, _ = docker_exec("urft_server", "ls -lh /app/recived/")
     if success and files:
-        print("Received files:")
+        print("\nReceived files:")
         print(files)
 
     # Calculate received MD5
     received_path = f"/app/recived/{filename}"
     received_md5 = calculate_md5("urft_server", received_path)
 
+    print(f"\nOriginal MD5: {original_md5}")
     print(f"Received MD5: {received_md5 if received_md5 else 'FILE NOT FOUND'}")
 
     # Check if test passed
+    print(colored("\n" + "=" * 70, YELLOW))
     if received_md5 and original_md5 == received_md5:
-        print(colored(f"\n✓ Test {test_num} PASSED", GREEN))
+        print(colored(f"✓ Test {test_num} PASSED - File transferred successfully!", GREEN))
+        print(colored("=" * 70, YELLOW))
         return True
     else:
         if not received_md5:
-            print(colored(f"\n✗ Test {test_num} FAILED - File not received", RED))
+            print(colored(f"✗ Test {test_num} FAILED - File not received", RED))
         else:
-            print(colored(f"\n✗ Test {test_num} FAILED - File corrupted", RED))
+            print(colored(f"✗ Test {test_num} FAILED - File corrupted (MD5 mismatch)", RED))
+        print(colored("=" * 70, YELLOW))
         return False
 
 

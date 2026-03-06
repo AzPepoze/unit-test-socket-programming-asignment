@@ -41,6 +41,8 @@ services:
 
      test:
           build: .
+          container_name: urft_test
+          hostname: test
           networks:
                urft_network:
                     ipv4_address: 172.25.0.30
