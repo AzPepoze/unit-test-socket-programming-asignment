@@ -2,3 +2,4 @@ src/*.py
 test/*.bin
 recived
 temp
+__pycache__
