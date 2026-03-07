@@ -30,16 +30,7 @@ def run_single_test(test_num, custom_file=None):
 
     file_size = test_config["file_size_mb"]
     timeout = test_config["timeout"]
-
-    print(f"Configuration: {file_size}MB file, {timeout}s timeout")
-    print(f"Description: {test_config['name']}")
-
-    print("\nNetwork Conditions:")
-    for role in ["client", "server"]:
-        conds = test_config["network_conditions"].get(role, {})
-        params = [f"{k}={v}" for k, v in conds.items() if v]
-        print(f"  {role.capitalize()}: {', '.join(params) if params else 'Normal'}")
-
+    
     # Setup network conditions
     if not setup_network_conditions(test_num):
         return False, 0.0
@@ -66,12 +57,23 @@ def run_single_test(test_num, custom_file=None):
     # Calculate original MD5
     original_path = f"/app/test/{filename}"
     original_md5 = calculate_md5("urft_client", original_path)
-    print(f"Original MD5:  {original_md5}")
+    print(colored(f"  [Setup] Original MD5   : {original_md5}", GRAY))
+
+    print("\n" + colored("=" * 70, YELLOW))
+    print(colored(f" Starting Test {test_num}: {test_config['name']}", YELLOW))
+    print(colored("=" * 70, YELLOW))
+    print(colored(f"▶ Configuration  : {file_size}MB file, {timeout}s timeout", CYAN))
+    
+    client_conds = test_config.get("network_conditions", {}).get("client", {})
+    client_params = [f"{k}={v}" for k, v in client_conds.items() if v]
+    server_conds = test_config.get("network_conditions", {}).get("server", {})
+    server_params = [f"{k}={v}" for k, v in server_conds.items() if v]
+    
+    print(colored(f"▶ Net Client     : {', '.join(client_params) if client_params else 'Normal'}", CYAN))
+    print(colored(f"▶ Net Server     : {', '.join(server_params) if server_params else 'Normal'}", CYAN))
+    print(colored("-" * 70, YELLOW))
 
     # Run client transfer
-    print("\n" + colored("=" * 70, YELLOW))
-    print(colored("Starting file transfer...", YELLOW))
-    print(colored("=" * 70, YELLOW))
 
     server_cmd = ["python", "-u", "/app/src/urft_server.py", "0.0.0.0", str(CONFIG["server"]["port"])]
     client_cmd = ["python", "-u", "/app/src/urft_client.py", original_path, CONFIG["docker"]["server_ip"], str(CONFIG["server"]["port"])]

@@ -8,6 +8,8 @@ from pathlib import Path
 GREEN = "\033[0;32m"
 RED = "\033[0;31m"
 YELLOW = "\033[1;33m"
+CYAN = "\033[1;36m"
+GRAY = "\033[0;90m"
 NC = "\033[0m"  # No Color
 
 # Load configuration
@@ -62,15 +64,13 @@ def reset_network_conditions():
 
 def setup_network_conditions(test_num):
     """Apply network conditions from config"""
-    print("Setting up network conditions...")
+    print(colored("  [Setup] Setting up network conditions...", GRAY))
 
     # Find test config
     test_config = next((t for t in CONFIG["tests"] if t["id"] == test_num), None)
     if not test_config:
         print(colored(f"Error: Test {test_num} not found in config", RED))
         return False
-
-    print(f"Test: {test_config['name']}")
 
     # Reset any leftover rules before applying new ones
     reset_network_conditions()
@@ -92,26 +92,33 @@ def setup_network_conditions(test_num):
         reorder = reorder if reorder else "null"
 
         cmd = f"sh /app/scripts/network_setup.sh {delay} {loss} {duplicate} {reorder}"
-        success, _, _ = docker_exec(container_name, cmd, capture=False)
+        success, stdout, stderr = docker_exec(container_name, cmd, capture=True)
+        if stdout:
+            for line in stdout.splitlines():
+                print(colored(f"  [{container_name}] {line}", GRAY))
+        if stderr:
+            for line in stderr.splitlines():
+                print(colored(f"  [{container_name} ERR] {line}", RED))
+        
         if not success:
-            print(f"Warning: Failed to setup network for {container_name}")
+            print(colored(f"Warning: Failed to setup network for {container_name}", RED))
 
     return True
 
 
 def cleanup_test_files():
     """Clean up previous test files"""
-    print("Cleaning up previous test files...")
-    docker_exec("urft_client", ["sh", "-c", "rm -f /app/test/test_file_*mb.bin"], capture=False)
-    docker_exec("urft_server", ["sh", "-c", "rm -rf /app/recived/*"], capture=False)
+    print(colored("  [Setup] Cleaning up previous test files...", GRAY))
+    docker_exec("urft_client", ["sh", "-c", "rm -f /app/test/test_file_*mb.bin"], capture=True)
+    docker_exec("urft_server", ["sh", "-c", "rm -rf /app/recived/*"], capture=True)
 
 
 def create_test_file(size_mb):
     """Create test file in container"""
     filename = f"test_file_{size_mb}mb.bin"
-    print(f"Creating {size_mb}MB test file...")
+    print(colored(f"  [Setup] Creating {size_mb}MB test file...", GRAY))
 
-    docker_exec("urft_client", ["mkdir", "-p", "/app/test"], capture=False)
+    docker_exec("urft_client", ["mkdir", "-p", "/app/test"], capture=True)
     python_cmd = [
         "python",
         "-c",
@@ -120,7 +127,7 @@ def create_test_file(size_mb):
 
     success, stdout, _ = docker_exec("urft_client", python_cmd, capture=True)
     if success:
-        print(f"Created: {stdout}")
+        print(colored(f"  [Setup] Created: {stdout}", GRAY))
     return filename if success else None
 
 
@@ -134,10 +141,10 @@ def use_custom_file(host_filepath):
 
     filename = filepath.name
     file_size_mb = filepath.stat().st_size / (1024 * 1024)
-    print(f"Using custom file: {filename} ({file_size_mb:.2f} MB)")
+    print(colored(f"  [Setup] Using custom file: {filename} ({file_size_mb:.2f} MB)", GRAY))
 
     # Ensure /app/test exists in both containers
-    docker_exec("urft_client", ["mkdir", "-p", "/app/test"], capture=False)
+    docker_exec("urft_client", ["mkdir", "-p", "/app/test"], capture=True)
 
     # Copy file to client container
     container_path = f"urft_client:/app/test/{filename}"
@@ -147,7 +154,7 @@ def use_custom_file(host_filepath):
         print(colored(f"Error copying file to urft_client: {e}", RED))
         return None
 
-    print(f"Copied to: /app/test/{filename}")
+    print(colored(f"  [Setup] Copied to: /app/test/{filename}", GRAY))
     return filename
 
 
@@ -204,10 +211,10 @@ for pid in os.listdir('/proc'):
 
 def start_containers():
     """Start Docker containers"""
-    print("Starting Docker containers...")
+    print(colored("[Docker] Starting Docker containers...", CYAN))
     # Run from project root, docker-compose.yml is in root
     script_dir = Path(__file__).parent.parent  # Go to project root
     compose_file = script_dir / "docker-compose.yml"
-    run_command(f"docker compose -f {compose_file} up -d", capture=False)
-    print("Waiting for containers to be ready...")
+    run_command(f"docker compose -f {compose_file} up -d", capture=True)
+    print(colored("[Docker] Waiting for containers to be ready...", CYAN))
     time.sleep(1)
