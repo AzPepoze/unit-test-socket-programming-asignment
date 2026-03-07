@@ -7,6 +7,7 @@ For just the sake just for testing so I just slap to the AI to create this proje
 ## Table of Contents
 
 - [Prerequisites](#prerequisites)
+- [Source Code Guidelines](#source-code-guidelines)
 - [Quick Start](#quick-start)
 - [Usage](#usage)
      - [Running Tests](#running-tests)
@@ -24,6 +25,28 @@ For just the sake just for testing so I just slap to the AI to create this proje
 
 - **Docker** & **Docker Compose**
 - **Python 3.7+**
+
+## Source Code Guidelines
+
+> [!IMPORTANT]
+>
+> - `src/urft_client.py`
+>      - it's usage should be like
+>           ```bash
+>           python urft_client.py /path/to/file.bin <server_ip> <server_port>
+>           ```
+>      - path will pass like (e.g., `/path/to/file.bin`)
+>           - it should automatically extract and send only the file name `(file.bin)` to the server, not the full path.
+>      - terminates with `sys.exit(0)` after finished.
+>           - ⚠️ This was unsure if it was required for the assignment, but for this test utility it is required for faster and correct time measurement
+> - `src/urft_server.py`
+>      - it's usage should be like
+>           ```bash
+>           python urft_server.py <server_ip> <server_port>
+>           ```
+>      - make sure to save received file with the same name as sent by the client (e.g., `file.bin`).
+>      - terminates with `sys.exit(0)` after finished.
+>           - ⚠️ This was unsure if it was required for the assignment, but for this test utility it is required for faster and correct time measurement
 
 ## Quick Start
 
@@ -157,6 +180,7 @@ docker compose up -d --build
 ## Troubleshooting
 
 If you encounter issues:
+
 - **Containers won't start:** Run `docker compose up -d --build`
 - **File transfer fails:** Make sure you start the server explicitly via `docker exec -it urft_server python /app/src/urft_server.py 0.0.0.0 12345` when testing manually.
 - **Code changes not reflected:** Ensure the volume mounts (`./src:/app/src`) are working correctly.
