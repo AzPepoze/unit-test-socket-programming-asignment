@@ -147,7 +147,7 @@ def run_single_test(test_num, custom_file=None):
         cleanup_client()
         reset_network_conditions()
 
-        print(colored("\n" + "=" * 70, YELLOW))
+        print(colored("-" * 70, GRAY))
 
     except Exception as e:
         print(colored(f"Error running client: {e}", RED))
