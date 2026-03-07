@@ -19,6 +19,7 @@ from pathlib import Path
 import threading
 import queue
 from test_utils import *
+from test_utils import reset_network_conditions
 
 def run_single_test(test_num, custom_file=None):
     """Run a single test - Get test configuration from config.json"""
@@ -142,11 +143,15 @@ def run_single_test(test_num, custom_file=None):
         server_proc.wait()
         cleanup_server()
         cleanup_client()
+        reset_network_conditions()
 
         print(colored("\n" + "=" * 70, YELLOW))
 
     except Exception as e:
         print(colored(f"Error running client: {e}", RED))
+        cleanup_server()
+        cleanup_client()
+        reset_network_conditions()
         return False, 0.0
 
     # Verify file transfer

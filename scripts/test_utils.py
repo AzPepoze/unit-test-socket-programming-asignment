@@ -50,6 +50,11 @@ def docker_exec(container, command, capture=True):
     cmd = ["docker", "exec", container] + (command if isinstance(command, list) else command.split())
     return run_command(cmd, capture=capture)
 
+def reset_network_conditions():
+    """Tear down all tc rules on both containers (returns network to clean state)"""
+    for container_name in ["urft_server", "urft_client"]:
+        docker_exec(container_name, ["tc", "qdisc", "del", "dev", "eth0", "root"], capture=False)
+
 def setup_network_conditions(test_num):
     """Apply network conditions from config"""
     print("Setting up network conditions...")
@@ -61,6 +66,9 @@ def setup_network_conditions(test_num):
         return False
 
     print(f"Test: {test_config['name']}")
+
+    # Reset any leftover rules before applying new ones
+    reset_network_conditions()
 
     # Apply network conditions to each container
     for container_name in ["urft_server", "urft_client"]:
