@@ -2,19 +2,19 @@
 """
 Automated test runner for Docker environment
 Usage:
-    python run_test.py <test_number|all> [--file <path>]
+    python run_test.py <test_number|all> [times] [--file <path>]
 
 Examples:
-    python run_test.py 1                    # Run test 1 with auto-generated file
-    python run_test.py all                  # Run all tests
-    python run_test.py 3 --file myfile.pdf  # Run test 3 with custom file
+    python run_test.py 1                    # Run test 1 once
+    python run_test.py 1 5                  # Run test 1 five times
+    python run_test.py all                  # Run all tests once
+    python run_test.py all 5                # Run all tests five times
+    python run_test.py 3 5 --file myfile.pdf  # Run test 3 five times with custom file
 """
 
 import sys
 import subprocess
 import time
-import hashlib
-import json
 from pathlib import Path
 import threading
 import queue
@@ -252,20 +252,36 @@ def print_congratulations():
     print("\nSource: https://www.reddit.com/r/EmoticonHub/comments/1nvw9lu/congratulations_ascii_art/")
 
 
-def print_test_summary_table(test_times, passed, failed, total_tests):
-    """Print the final test summary as a formatted table"""
-    table_width = 140
+def print_test_summary_table(all_results):
+    """Print the final test summary as a formatted table with vertical time statistics"""
+    table_width = 135
     print(f"\n{colored('='*table_width, YELLOW)}")
     print(colored(f"{'Test Summary':^{table_width}}", YELLOW))
     print(f"{colored('='*table_width, YELLOW)}")
 
-    header = f"{'ID':^4} | {'Status':^6} | {'Time':^7} | {'Size':^6} | {'Client Net':^30} | {'Server Net':^30} | {'Description'}"
+    header = f"{'ID':^4} | {'Status':^10} | {'Time':^10} | {'Size':^8} | {'Client Net':^25} | {'Server Net':^25} | {'Description'}"
     print(header)
     print("-" * table_width)
 
-    for test_num, success, elapsed in test_times:
-        status_color = GREEN if success else RED
-        status_text = "PASS" if success else "FAIL"
+    total_passed = 0
+    total_runs = 0
+
+    for i, (test_num, runs) in enumerate(all_results.items()):
+        successes = [r[0] for r in runs]
+        times = [r[1] for r in runs if r[0]]  # Only consider times for successful runs
+
+        passed_count = sum(1 for s in successes if s)
+        run_count = len(successes)
+        total_passed += passed_count
+        total_runs += run_count
+
+        if run_count == 1:
+            status_text = "PASS" if passed_count == run_count else "FAILED"
+        else:
+            status_text = f"{passed_count}/{run_count} PASS" if passed_count == run_count else f"{passed_count}/{run_count} FAIL"
+
+        status_color = GREEN if passed_count == run_count else (YELLOW if passed_count > 0 else RED)
+        status_formatted = colored(f"{status_text:^10}", status_color)
 
         test_config = next((t for t in CONFIG["tests"] if t["id"] == test_num), {})
         size = f"{test_config.get('file_size_mb', '-')}MB"
@@ -279,46 +295,63 @@ def print_test_summary_table(test_times, passed, failed, total_tests):
         server_params = [f"{k}={v}" for k, v in server_conds.items() if v]
         server_net = ", ".join(server_params) if server_params else "Normal"
 
-        status_formatted = colored(f"{status_text:^6}", status_color)
+        if run_count == 1:
+            # Single run format: Show as a single row
+            time_str = f"{times[0]:.2f}s" if times else "N/A"
+            print(f"{test_num:^4} | {status_formatted} | {time_str:>10} | {size:^8} | {client_net[:25]:^25} | {server_net[:25]:^25} | {desc[:37]}")
+        else:
+            # Multiple runs format: Vertical time statistics (3 rows)
+            if times:
+                min_t = f"MIN: {min(times):.2f}s"
+                max_t = f"MAX: {max(times):.2f}s"
+                avg_t = f"AVG: {sum(times)/len(times):.2f}s"
+            else:
+                min_t = "MIN: N/A"
+                max_t = "MAX: N/A"
+                avg_t = "AVG: N/A"
 
-        row_prefix = f"{test_num:^4} | "
-        row_suffix = f" | {elapsed:>6.2f}s | {size[:6]:>6} | {client_net[:30]:^30} | {server_net[:30]:^30} | {desc[:40]}"
-        print(row_prefix + status_formatted + row_suffix)
+            # Row 1: MIN
+            print(f"{' ':^4} | {' ':^10} | {min_t:<10} | {' ':^8} | {' ':^25} | {' ':^25} | {' ':^37}")
+            # Row 2: ID, Status, AVG, Size, Net conditions, Description
+            print(f"{test_num:^4} | {status_formatted} | {avg_t:<10} | {size:^8} | {client_net[:25]:^25} | {server_net[:25]:^25} | {desc[:37]}")
+            # Row 3: MAX
+            print(f"{' ':^4} | {' ':^10} | {max_t:<10} | {' ':^8} | {' ':^25} | {' ':^25} | {' ':^37}")
 
-    print(f"{colored('-'*table_width, YELLOW)}")
+        # Only print separator if not the last item and there are multiple runs (to separate different tests)
+        if i < len(all_results) - 1 and run_count > 1:
+            print("-" * table_width)
 
-    summary_line = colored(f"Passed: {passed}", GREEN) + " | " + colored(f"Failed: {failed}", RED) + f" | Total: {total_tests}"
+    # Use double line separator before summary
+    print(f"{colored('='*table_width, YELLOW)}")
+    summary_line = colored(f"Total Passed: {total_passed}/{total_runs}", GREEN if total_passed == total_runs else YELLOW)
     print(summary_line)
     print(f"{colored('='*table_width, YELLOW)}\n")
 
 
-def run_all_tests():
+def run_all_tests(times=1):
     """Run all test cases from config.json"""
-    passed = 0
-    failed = 0
-    test_times = []
-
+    all_results = {}
     test_ids = [t["id"] for t in CONFIG["tests"]]
-    total_tests = len(test_ids)
 
     for test_num in test_ids:
-        success, elapsed = run_single_test(test_num)
-        test_times.append((test_num, success, elapsed))
-
-        if success:
-            passed += 1
-        else:
-            failed += 1
-        time.sleep(1)
+        runs = []
+        for i in range(times):
+            if times > 1:
+                print(colored(f"\n[Iteration {i+1}/{times}]", CYAN))
+            success, elapsed = run_single_test(test_num)
+            runs.append((success, elapsed))
+            time.sleep(1)
+        all_results[test_num] = runs
 
     # Print summary
-    print_test_summary_table(test_times, passed, failed, total_tests)
+    print_test_summary_table(all_results)
 
-    if failed == 0:
+    all_passed = all(all(r[0] for r in runs) for runs in all_results.values())
+    if all_passed:
         print_congratulations()
         print()
 
-    return failed == 0
+    return all_passed
 
 
 def main():
@@ -327,22 +360,37 @@ def main():
     print(f"{colored('='*70, YELLOW)}\n")
 
     if len(sys.argv) < 2:
-        print("Usage: python run_test.py <test_number|all> [--file <path>]")
+        print("Usage: python run_test.py <test_number|all> [times] [--file <path>]")
         print("\nExamples:")
-        print("  python run_test.py 1              # Run test 1 with auto-generated file")
-        print("  python run_test.py all            # Run all tests")
-        print("  python run_test.py 3 --file myfile.bin  # Run test 3 with custom file")
+        print("  python run_test.py 1              # Run test 1 once")
+        print("  python run_test.py 1 5            # Run test 1 five times")
+        print("  python run_test.py all            # Run all tests once")
+        print("  python run_test.py all 5          # Run all tests five times")
+        print("  python run_test.py 3 5 --file myfile.bin  # Run test 3 five times with custom file")
         sys.exit(1)
 
     test_arg = sys.argv[1]
+    times = 1
     custom_file = None
 
-    # Check for --file argument
-    if len(sys.argv) > 2 and sys.argv[2] == "--file":
-        if len(sys.argv) < 4:
-            print(colored("Error: --file requires a file path", RED))
-            sys.exit(1)
-        custom_file = sys.argv[3]
+    # Simple argument parsing
+    args = sys.argv[2:]
+    i = 0
+    while i < len(args):
+        if args[i] == "--file":
+            if i + 1 < len(args):
+                custom_file = args[i + 1]
+                i += 2
+            else:
+                print(colored("Error: --file requires a file path", RED))
+                sys.exit(1)
+        else:
+            try:
+                times = int(args[i])
+                i += 1
+            except ValueError:
+                print(colored(f"Error: Invalid argument '{args[i]}'", RED))
+                sys.exit(1)
 
     # Start containers
     start_containers()
@@ -351,19 +399,29 @@ def main():
     if test_arg.lower() == "all":
         if custom_file:
             print(colored("Warning: --file ignored when running all tests", YELLOW))
-        success = run_all_tests()
+        success = run_all_tests(times)
     else:
         try:
             test_num = int(test_arg)
             test_ids = [t["id"] for t in CONFIG["tests"]]
             if test_num in test_ids:
-                success, _ = run_single_test(test_num, custom_file)
+                runs = []
+                for iteration in range(times):
+                    if times > 1:
+                        print(colored(f"\n[Iteration {iteration+1}/{times}]", CYAN))
+                    success, elapsed = run_single_test(test_num, custom_file)
+                    runs.append((success, elapsed))
+                    time.sleep(1)
+
+                print_test_summary_table({test_num: runs})
+                success = all(r[0] for r in runs)
             else:
                 print(colored(f"Error: Test number must be one of {test_ids}", RED))
                 sys.exit(1)
         except ValueError:
             print(colored("Error: Invalid test number", RED))
             sys.exit(1)
+
     sys.exit(0 if success else 1)
 
 

@@ -6,24 +6,22 @@ For just the sake just for testing so I just slap to the AI to create this proje
 
 ## Table of Contents
 
-- [UDP Reliable File Transfer - Docker Testing Environment](#udp-reliable-file-transfer---docker-testing-environment)
-     - [Table of Contents](#table-of-contents)
-     - [Prerequisites](#prerequisites)
-     - [Source Code Guidelines](#source-code-guidelines)
-     - [Quick Start](#quick-start)
-          - [Test with config.json scenarios](#test-with-configjson-scenarios)
-          - [Test with custom files](#test-with-custom-files)
-     - [Usage](#usage)
-          - [Running Tests](#running-tests)
-          - [Manual Testing](#manual-testing)
-          - [Custom Files](#custom-files)
-     - [Configuration](#configuration)
-          - [Editing config.json](#editing-configjson)
-          - [Test Scenarios](#test-scenarios)
-     - [Development](#development)
-          - [Real-Time Updates](#real-time-updates)
-          - [When to Rebuild](#when-to-rebuild)
-     - [Troubleshooting](#troubleshooting)
+- [Prerequisites](#prerequisites)
+- [Source Code Guidelines](#source-code-guidelines)
+- [Quick Start](#quick-start)
+     - [Test with config.json scenarios](#test-with-configjson-scenarios)
+     - [Test with custom files](#test-with-custom-files)
+- [Usage](#usage)
+     - [Running Tests](#running-tests)
+     - [Manual Testing](#manual-testing)
+     - [Custom Files](#custom-files)
+- [Configuration](#configuration)
+     - [Editing config.json](#editing-configjson)
+     - [Test Scenarios](#test-scenarios)
+- [Development](#development)
+     - [Real-Time Updates](#real-time-updates)
+     - [When to Rebuild](#when-to-rebuild)
+- [Troubleshooting](#troubleshooting)
 
 ## Prerequisites
 
@@ -63,6 +61,12 @@ python scripts/run_test.py 1
 # Or run all tests
 python scripts/run_test.py all
 
+# Or run it 5 times to see MIN/MAX/AVG statistics
+python scripts/run_test.py 1 5
+
+# Or run all tests 3 times each
+python scripts/run_test.py all 3
+
 # 2. Edit your code in src/
 # Changes are live - no rebuild needed!
 
@@ -88,8 +92,14 @@ python scripts/run_test.py 1 --file test/keqing.png
 # Single test (1-8)
 python scripts/run_test.py 3
 
+# Single test multiple times (e.g., 5 times)
+python scripts/run_test.py 3 5
+
 # All tests
 python scripts/run_test.py all
+
+# All tests multiple times (e.g., 3 times each)
+python scripts/run_test.py all 3
 ```
 
 ### Manual Testing
@@ -109,8 +119,8 @@ Test with your own files instead of generated random data:
 ```bash
 # Test with PDF, image, video, etc.
 python scripts/run_test.py 3 --file myfile.pdf
-python scripts/run_test.py 1 --file document.docx
-python scripts/run_test.py 5 --file video.mp4
+python scripts/run_test.py 1 5 --file document.docx  # Run 5 times
+python scripts/run_test.py 5 3 --file video.mp4     # Run 3 times
 ```
 
 ## Configuration
