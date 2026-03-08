@@ -162,12 +162,12 @@ def run_single_test(test_num, custom_file=None):
     print(colored("Verifying file transfer...", YELLOW))
     print(colored("=" * 70, YELLOW))
 
-    # Copy file from recived to temp for verification
-    received_dir = Path(__file__).parent.parent / "recived"
+    # Copy file from received to temp for verification
+    received_dir = Path(__file__).parent.parent / "received"
     temp_dir = Path(__file__).parent.parent / "temp"
     temp_dir.mkdir(exist_ok=True)
 
-    # List received files (copy from recived folder)
+    # List received files (copy from received folder)
     if received_dir.exists():
         files = list(received_dir.glob("*"))
         files = [f for f in files if f.is_file()]

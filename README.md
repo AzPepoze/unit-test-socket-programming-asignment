@@ -6,20 +6,24 @@ For just the sake just for testing so I just slap to the AI to create this proje
 
 ## Table of Contents
 
-- [Prerequisites](#prerequisites)
-- [Source Code Guidelines](#source-code-guidelines)
-- [Quick Start](#quick-start)
-- [Usage](#usage)
-     - [Running Tests](#running-tests)
-     - [Manual Testing](#manual-testing)
-     - [Custom Files](#custom-files)
-- [Configuration](#configuration)
-     - [Editing config.json](#editing-configjson)
-     - [Test Scenarios](#test-scenarios)
-- [Development](#development)
-     - [Real-Time Updates](#real-time-updates)
-     - [When to Rebuild](#when-to-rebuild)
-- [Troubleshooting](#troubleshooting)
+- [UDP Reliable File Transfer - Docker Testing Environment](#udp-reliable-file-transfer---docker-testing-environment)
+     - [Table of Contents](#table-of-contents)
+     - [Prerequisites](#prerequisites)
+     - [Source Code Guidelines](#source-code-guidelines)
+     - [Quick Start](#quick-start)
+          - [Test with config.json scenarios](#test-with-configjson-scenarios)
+          - [Test with custom files](#test-with-custom-files)
+     - [Usage](#usage)
+          - [Running Tests](#running-tests)
+          - [Manual Testing](#manual-testing)
+          - [Custom Files](#custom-files)
+     - [Configuration](#configuration)
+          - [Editing config.json](#editing-configjson)
+          - [Test Scenarios](#test-scenarios)
+     - [Development](#development)
+          - [Real-Time Updates](#real-time-updates)
+          - [When to Rebuild](#when-to-rebuild)
+     - [Troubleshooting](#troubleshooting)
 
 ## Prerequisites
 
@@ -173,7 +177,7 @@ Pre-configured test scenarios (edit in `config.json`):
 
 - `./src` → `/app/src` (live code updates)
 - `./config.json` → `/app/config.json` (live config updates)
-- `./test` & `./recived` → File storage
+- `./test` & `./received` → File storage
 
 ### When to Rebuild
 

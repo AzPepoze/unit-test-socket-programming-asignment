@@ -99,7 +99,6 @@ def setup_network_conditions(test_num):
         if stderr:
             for line in stderr.splitlines():
                 print(colored(f"  [{container_name} ERR] {line}", RED))
-        
         if not success:
             print(colored(f"Warning: Failed to setup network for {container_name}", RED))
 
@@ -110,7 +109,7 @@ def cleanup_test_files():
     """Clean up previous test files"""
     print(colored("  [Setup] Cleaning up previous test files...", GRAY))
     docker_exec("urft_client", ["sh", "-c", "rm -f /app/test/test_file_*mb.bin"], capture=True)
-    docker_exec("urft_server", ["sh", "-c", "rm -rf /app/recived/*"], capture=True)
+    docker_exec("urft_server", ["sh", "-c", "rm -rf /app/received/*"], capture=True)
 
 
 def create_test_file(size_mb):

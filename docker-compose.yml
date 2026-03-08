@@ -8,12 +8,12 @@ services:
                     ipv4_address: 172.25.0.10
           cap_add:
              - NET_ADMIN
-          working_dir: /app/recived
+          working_dir: /app/received
           command: sleep infinity
           volumes:
              - ./src:/app/src
              - ./config.json:/app/config.json
-             - ./recived:/app/recived
+             - ./received:/app/received
              - ./test:/app/test
              - .:/app/workspace
           stdin_open: true
@@ -33,7 +33,7 @@ services:
           volumes:
              - ./src:/app/src
              - ./config.json:/app/config.json
-             - ./recived:/app/recived
+             - ./received:/app/received
              - ./test:/app/test
              - .:/app/workspace
           stdin_open: true
@@ -54,7 +54,7 @@ services:
           volumes:
              - ./src:/app/src
              - ./config.json:/app/config.json
-             - ./recived:/app/recived
+             - ./received:/app/received
              - ./test:/app/test
              - .:/app/workspace
           stdin_open: true

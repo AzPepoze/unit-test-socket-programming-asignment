@@ -10,7 +10,7 @@ WORKDIR /app
 
 # Copy only scripts needed at build time
 COPY scripts/network_setup.sh /app/scripts/
-RUN mkdir -p /app/tmp /app/recived /app/src
+RUN mkdir -p /app/tmp /app/received /app/src
 RUN chmod +x /app/scripts/network_setup.sh
 
 # Source files will be mounted as volumes for live updates
