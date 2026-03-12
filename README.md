@@ -25,8 +25,8 @@ For just the sake just for testing so I just slap to the AI to create this proje
 
 ## Prerequisites
 
-- **Docker** & **Docker Compose**
-- **Python 3.7+**
+- [**Docker** & **Docker Compose**](https://www.docker.com/)
+- [**Python 3.7+**](https://www.python.org/downloads/)
 
 ## Source Code Guidelines
 
