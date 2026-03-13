@@ -9,8 +9,12 @@ For just the sake just for testing so I just slap to the AI to create this proje
 - [Prerequisites](#prerequisites)
 - [Source Code Guidelines](#source-code-guidelines)
 - [Quick Start](#quick-start)
+     - [Run Docker Containers (First Time Only)](#run-docker-containers-first-time-only)
      - [Test with config.json scenarios](#test-with-configjson-scenarios)
      - [Test with custom files](#test-with-custom-files)
+     - [Secret test case](#secret-test-case)
+     - [Stop docker containers](#stop-docker-containers)
+     - [Stop/Resume git tracking](#stopresume-git-tracking)
 - [Usage](#usage)
      - [Running Tests](#running-tests)
      - [Manual Testing](#manual-testing)
@@ -94,6 +98,23 @@ python scripts/run_test.py 1 --file test/keqing.png
 
 ```bash
 python scripts/run_test.py 9
+```
+
+### Stop docker containers
+
+```bash
+docker compose down
+```
+
+### Stop/Resume git tracking 
+
+`Stop` Git from tracking your local changes (useful for local configurations), run:
+```bash
+git update-index --skip-worktree src/urft_client.py src/urft_server.py
+```
+`Resume` tracking changes:
+```bash
+git update-index --no-skip-worktree src/urft_client.py src/urft_server.py
 ```
 
 ## Usage

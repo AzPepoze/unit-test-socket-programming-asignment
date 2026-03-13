@@ -11,15 +11,17 @@ Examples:
     python run_test.py all 5                # Run all tests five times
     python run_test.py 3 5 --file myfile.pdf  # Run test 3 five times with custom file
 """
-
 import sys
 import subprocess
 import time
-from pathlib import Path
 import threading
 import queue
+from pathlib import Path
+sys.path.append(str(Path(__file__).parent))
+
 from test_utils import *
 from test_utils import reset_network_conditions
+from cleanup import run_cleanup
 
 
 def run_single_test(test_num, custom_file=None):
@@ -60,9 +62,9 @@ def run_single_test(test_num, custom_file=None):
     original_md5 = calculate_md5("urft_client", original_path)
     print(colored(f"  [Setup] Original MD5   : {original_md5}", GRAY))
 
-    print("\n" + colored("=" * 70, YELLOW))
+    print_separator(YELLOW)
     print(colored(f" Starting Test {test_num}: {test_config['name']}", YELLOW))
-    print(colored("=" * 70, YELLOW))
+    print_separator(YELLOW)
     print(colored(f"▶ Configuration  : {file_size}MB file, {timeout}s timeout", CYAN))
 
     client_conds = test_config.get("network_conditions", {}).get("client", {})
@@ -72,7 +74,7 @@ def run_single_test(test_num, custom_file=None):
 
     print(colored(f"▶ Net Client     : {', '.join(client_params) if client_params else 'Normal'}", CYAN))
     print(colored(f"▶ Net Server     : {', '.join(server_params) if server_params else 'Normal'}", CYAN))
-    print(colored("-" * 70, YELLOW))
+    print_separator(YELLOW, char="-")
 
     # Run client transfer
 
@@ -158,9 +160,9 @@ def run_single_test(test_num, custom_file=None):
         return False, 0.0
 
     # Verify file transfer
-    print(colored("\n" + "=" * 70, YELLOW))
+    print_separator(YELLOW)
     print(colored("Verifying file transfer...", YELLOW))
-    print(colored("=" * 70, YELLOW))
+    print_separator(YELLOW)
 
     # Copy file from received to temp for verification
     received_dir = Path(__file__).parent.parent / "received"
@@ -191,11 +193,11 @@ def run_single_test(test_num, custom_file=None):
     print(f"Received MD5: {received_md5 if received_md5 else 'FILE NOT FOUND'}")
 
     # Check if test passed
-    print(colored("\n" + "=" * 70, YELLOW))
+    print_separator(YELLOW)
     if received_md5 and original_md5 == received_md5:
         print(colored(f"✓ Test {test_num} PASSED - File transferred successfully!", GREEN))
         print(colored(f"  Time taken: {elapsed_time:.2f}s", GREEN))
-        print(colored("=" * 70, YELLOW))
+        print_separator(YELLOW)
         return True, elapsed_time
     else:
         if not received_md5:
@@ -204,29 +206,9 @@ def run_single_test(test_num, custom_file=None):
             print(colored(f"✗ Test {test_num} FAILED - File corrupted (MD5 mismatch)\n", RED))
             print(colored("Detailed Byte Analysis:", YELLOW))
             host_original_path = Path(__file__).parent.parent / "test" / filename
-            try:
-                with open(host_original_path, "rb") as f1, open(received_file_path, "rb") as f2:
-                    d1 = f1.read()
-                    d2 = f2.read()
-                    print(f"  Expected Size: {len(d1)} bytes")
-                    print(f"  Received Size: {len(d2)} bytes")
-                    if len(d1) != len(d2):
-                        diff = len(d2) - len(d1)
-                        sign = "+" if diff > 0 else ""
-                        print(colored(f"  Size differs by {sign}{diff} bytes!", RED))
+            compare_files(host_original_path, received_file_path)
 
-                    for i in range(min(len(d1), len(d2))):
-                        if d1[i] != d2[i]:
-                            print(colored(f"  First mismatch at byte offset {i} (0x{i:04X})", RED))
-                            print(f"    Expected: 0x{d1[i]:02X}")
-                            print(f"    Received: 0x{d2[i]:02X}")
-                            packet_approx = i / (10240 - 2)
-                            print(f"    Approximate packet index: {packet_approx:.2f}")
-                            break
-            except Exception as e:
-                print(f"  Could not run detailed analysis: {e}")
-
-        print(colored("-" * 70, YELLOW))
+        print_separator(YELLOW, char="-")
         print(colored("Failed Test Configuration:", YELLOW))
         print(f"  Reproduce : python scripts/run_test.py {test_num}")
         print(f"  File size : {file_size}MB")
@@ -238,26 +220,28 @@ def run_single_test(test_num, custom_file=None):
             params = [f"{k}={v}" for k, v in conds.items() if v]
             print(f"  {role.capitalize()}    : {', '.join(params) if params else 'Normal'}")
 
-        print(colored("=" * 70, YELLOW))
+        print_separator(YELLOW)
         return False, elapsed_time
 
 
-def print_congratulations():
-    print("　　　　　　　　　　　　　　。・　　ﾟ　　★　。・　ﾟ　☆。 ・　ﾟ")
-    print("　　　.へ￣＼　　　　　　｡･ﾟ・。・・。・　　。・・。 。・。 ・　ﾟ")
-    print("　　　　＿| 二)＿　 ☆　   　　★・。ﾟ・　☆・　ﾟ　・　ﾟ。 ・　ﾟ")
-    print("　　　　　(=ﾟωﾟ)っ／　　　　　　・。ﾟ　・　・。 ・　ﾟ　・　ﾟ。 ・　ﾟ")
-    print("　   三》━/レθθ━　　 ☆ C o n g r a t u l a t i o n s ! ! ! ☆")
-    print("　　　　　　　　 　　　　　　　☆　ﾟ　・　★ﾟ・　ﾟ　・　ﾟ　☆　ｷﾗ")
-    print("\nSource: https://www.reddit.com/r/EmoticonHub/comments/1nvw9lu/congratulations_ascii_art/")
+def run_test_with_iterations(test_id, times, custom_file=None):
+    """Run a specific test for a number of iterations"""
+    runs = []
+    for iteration in range(times):
+        if times > 1:
+            print(colored(f"\n[Iteration {iteration+1}/{times}]", CYAN))
+        success, elapsed = run_single_test(test_id, custom_file)
+        runs.append((success, elapsed))
+        time.sleep(1)
+    return runs
 
 
 def print_test_summary_table(all_results):
     """Print the final test summary as a formatted table with vertical time statistics"""
     table_width = 135
-    print(f"\n{colored('='*table_width, YELLOW)}")
+    print_separator(YELLOW, length=table_width)
     print(colored(f"{'Test Summary':^{table_width}}", YELLOW))
-    print(f"{colored('='*table_width, YELLOW)}")
+    print_separator(YELLOW, length=table_width)
 
     header = f"{'ID':^4} | {'Status':^10} | {'Time':^10} | {'Size':^8} | {'Client Net':^25} | {'Server Net':^25} | {'Description'}"
     print(header)
@@ -322,10 +306,11 @@ def print_test_summary_table(all_results):
             print("-" * table_width)
 
     # Use double line separator before summary
-    print(f"{colored('='*table_width, YELLOW)}")
+    print_separator(YELLOW, length=table_width)
     summary_line = colored(f"Total Passed: {total_passed}/{total_runs}", GREEN if total_passed == total_runs else YELLOW)
     print(summary_line)
-    print(f"{colored('='*table_width, YELLOW)}\n")
+    print_separator(YELLOW, length=table_width)
+    print()
 
 
 def run_all_tests(times=1):
@@ -334,13 +319,7 @@ def run_all_tests(times=1):
     test_ids = [t["id"] for t in CONFIG["tests"] if t.get("required", True)]
 
     for test_num in test_ids:
-        runs = []
-        for i in range(times):
-            if times > 1:
-                print(colored(f"\n[Iteration {i+1}/{times}]", CYAN))
-            success, elapsed = run_single_test(test_num)
-            runs.append((success, elapsed))
-            time.sleep(1)
+        runs = run_test_with_iterations(test_num, times)
         all_results[test_num] = runs
 
     # Print summary
@@ -355,9 +334,10 @@ def run_all_tests(times=1):
 
 
 def main():
-    print(f"\n{colored('='*70, YELLOW)}")
+    print_separator(YELLOW)
     print(colored("UDP Reliable File Transfer - Test Runner", YELLOW))
-    print(f"{colored('='*70, YELLOW)}\n")
+    print_separator(YELLOW)
+    print()
 
     if len(sys.argv) < 2:
         print("Usage: python run_test.py <test_number|all> [times] [--file <path>]")
@@ -392,6 +372,9 @@ def main():
                 print(colored(f"Error: Invalid argument '{args[i]}'", RED))
                 sys.exit(1)
 
+    # Run cleanup first
+    run_cleanup()
+
     # Start containers
     start_containers()
 
@@ -402,18 +385,11 @@ def main():
         success = run_all_tests(times)
     else:
         try:
-            test_num = int(test_arg)
+            test_id = int(test_arg)
             test_ids = [t["id"] for t in CONFIG["tests"]]
-            if test_num in test_ids:
-                runs = []
-                for iteration in range(times):
-                    if times > 1:
-                        print(colored(f"\n[Iteration {iteration+1}/{times}]", CYAN))
-                    success, elapsed = run_single_test(test_num, custom_file)
-                    runs.append((success, elapsed))
-                    time.sleep(1)
-
-                print_test_summary_table({test_num: runs})
+            if test_id in test_ids:
+                runs = run_test_with_iterations(test_id, times, custom_file)
+                print_test_summary_table({test_id: runs})
                 success = all(r[0] for r in runs)
             else:
                 print(colored(f"Error: Test number must be one of {test_ids}", RED))

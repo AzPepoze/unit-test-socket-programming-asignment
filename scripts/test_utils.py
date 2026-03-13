@@ -14,13 +14,18 @@ NC = "\033[0m"  # No Color
 
 # Load configuration
 CONFIG_PATH = Path(__file__).parent.parent / "config.json"
-with open(CONFIG_PATH, "r") as f:
+with open(CONFIG_PATH, "r", encoding="utf-8") as f:
     CONFIG = json.load(f)
 
 
 def colored(text, color):
     """Return colored text"""
     return f"{color}{text}{NC}"
+
+
+def print_separator(color=YELLOW, char="=", length=70):
+    """Print a horizontal separator line"""
+    print(colored(char * length, color))
 
 
 def read_stream(stream, queue_obj, prefix, color):
@@ -109,14 +114,27 @@ def setup_network_conditions(test_num):
 def cleanup_test_files():
     """Clean up previous test files"""
     print(colored("  [Setup] Cleaning up previous test files...", GRAY))
-    docker_exec("urft_client", ["sh", "-c", "rm -f /app/test/test_file_*mb.bin"], capture=True)
+    docker_exec("urft_client", ["sh", "-c", "rm -f /app/test/test_file_*mb_*.bin"], capture=True)
     docker_exec("urft_server", ["sh", "-c", "rm -rf /app/received/*"], capture=True)
 
 
+def cleanup_local_temp():
+    """Clean up local temporary folder"""
+    import shutil
+    temp_dir = Path(__file__).parent.parent / "temp"
+    if temp_dir.exists():
+        print(colored("  [Cleanup] Cleaning local temp folder...", GRAY))
+        shutil.rmtree(temp_dir)
+    temp_dir.mkdir(exist_ok=True)
+
+
 def create_test_file(size_mb):
-    """Create test file in container"""
-    filename = f"test_file_{size_mb}mb.bin"
-    print(colored(f"  [Setup] Creating {size_mb}MB test file...", GRAY))
+    """Create test file in container with a random suffix"""
+    import random
+    import string
+    random_suffix = "".join(random.choices(string.ascii_lowercase + string.digits, k=6))
+    filename = f"test_file_{size_mb}mb_{random_suffix}.bin"
+    print(colored(f"  [Setup] Creating {size_mb}MB test file: {filename}...", GRAY))
 
     docker_exec("urft_client", ["mkdir", "-p", "/app/test"], capture=True)
     python_cmd = [
@@ -175,6 +193,66 @@ def calculate_md5_local(filepath):
             return hashlib.md5(f.read()).hexdigest()
     except:
         return None
+
+
+def drain_udp_packets(container_name, port):
+    """Drain UDP packets from a specific port in a container"""
+    drain_python = f"""
+import socket
+s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+s.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+try:
+    s.bind(('0.0.0.0', {port}))
+    s.settimeout(0.2)
+    count = 0
+    while True:
+        s.recvfrom(65535)
+        count += 1
+except socket.timeout:
+    print(f'Drained {{count}} packets')
+except Exception as e:
+    print(f'Error: {{e}}')
+finally:
+    s.close()
+"""
+    print(colored(f"  [Cleanup] Draining UDP packets on port {port} in {container_name}...", GRAY))
+    return docker_exec(container_name, ["python", "-c", drain_python], capture=True)
+
+
+def compare_files(expected_path, received_path):
+    """Perform detailed byte analysis between two files"""
+    try:
+        with open(expected_path, "rb") as f1, open(received_path, "rb") as f2:
+            data_expected = f1.read()
+            data_received = f2.read()
+            print(f"  Expected Size: {len(data_expected)} bytes")
+            print(f"  Received Size: {len(data_received)} bytes")
+            if len(data_expected) != len(data_received):
+                size_difference = len(data_received) - len(data_expected)
+                sign = "+" if size_difference > 0 else ""
+                print(colored(f"  Size differs by {sign}{size_difference} bytes!", RED))
+
+            for i in range(min(len(data_expected), len(data_received))):
+                if data_expected[i] != data_received[i]:
+                    print(colored(f"  First mismatch at byte offset {i} (0x{i:04X})", RED))
+                    print(f"    Expected: 0x{data_expected[i]:02X}")
+                    print(f"    Received: 0x{data_received[i]:02X}")
+                    packet_index_approx = i / (10240 - 2)
+                    print(f"    Approximate packet index: {packet_index_approx:.2f}")
+                    break
+    except Exception as e:
+        print(f"  Could not run detailed analysis: {e}")
+
+
+def print_congratulations():
+    """Print ASCII art congratulations message"""
+    print("　　　　　　　　　　　　　　。・　　ﾟ　　★　。・　ﾟ　☆。 ・　ﾟ")
+    print("　　　.へ￣＼　　　　　　｡･ﾟ・。・・。・　　。・・。 。・。 ・　ﾟ")
+    print("　　　　＿| 二)＿　 ☆　   　　★・。ﾟ・　☆・　ﾟ　・　ﾟ。 ・　ﾟ")
+    print("　　　　　(=ﾟωﾟ)っ／　　　　　　・。ﾟ　・　・。 ・　ﾟ　・　ﾟ。 ・　ﾟ")
+    print("　   三》━/レθθ━　　 ☆ C o n g r a t u l a t i o n s ! ! ! ☆")
+    print("　　　　　　　　 　　　　　　　☆　ﾟ　・　★ﾟ・　ﾟ　・　ﾟ　☆　ｷﾗ")
+    print("\nSource: https://www.reddit.com/r/EmoticonHub/comments/1nvw9lu/congratulations_ascii_art/")
 
 
 def cleanup_server():
