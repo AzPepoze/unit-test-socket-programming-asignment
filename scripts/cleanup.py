@@ -21,18 +21,14 @@ def run_cleanup():
     print(colored("  [Cleanup] Resetting network conditions...", GRAY))
     reset_network_conditions()
 
-    # 3. Clear received files
-    print(colored("  [Cleanup] Clearing received folder and local temp...", GRAY))
-    docker_exec("urft_server", ["sh", "-c", "rm -rf /app/received/*"], capture=True)
+    # 3. Clear files
+    print(colored("  [Cleanup] Clearing test files and local temp...", GRAY))
+    cleanup_test_files()
     cleanup_local_temp()
 
     # 4. Drain packets (Inside container)
     drain_udp_packets("urft_server", CONFIG['server']['port'])
     drain_udp_packets("urft_client", CONFIG['server']['port'])
-
-    # 5. Wait for network to settle
-    print(colored("  [Cleanup] Waiting for network to settle...", GRAY))
-    time.sleep(1)
 
     print_separator(YELLOW)
     print(colored(" Cleanup completed successfully!", GREEN))

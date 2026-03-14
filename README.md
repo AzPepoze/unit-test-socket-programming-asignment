@@ -56,6 +56,12 @@ For just the sake just for testing so I just slap to the AI to create this proje
 
 ## Quick Start
 
+### Make sure you have the latest wsl2 kernel
+
+```bashbash
+wsl --update
+```
+
 ### Run Docker Containers (First Time Only)
 
 ```bash
@@ -106,13 +112,16 @@ python scripts/run_test.py 9
 docker compose down
 ```
 
-### Stop/Resume git tracking 
+### Stop/Resume git tracking
 
 `Stop` Git from tracking your local changes (useful for local configurations), run:
+
 ```bash
 git update-index --skip-worktree src/urft_client.py src/urft_server.py
 ```
+
 `Resume` tracking changes:
+
 ```bash
 git update-index --no-skip-worktree src/urft_client.py src/urft_server.py
 ```

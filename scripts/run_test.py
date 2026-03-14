@@ -31,15 +31,15 @@ def run_single_test(test_num, custom_file=None):
         print(colored(f"Error: Test {test_num} not found in config.json", RED))
         return False, 0.0
 
-    file_size = test_config["file_size_mb"]
-    timeout = test_config["timeout"]
+    # Full cleanup before starting
+    run_cleanup()
 
     # Setup network conditions
     if not setup_network_conditions(test_num):
         return False, 0.0
 
-    # Clean up previous test
-    cleanup_test_files()
+    file_size = test_config["file_size_mb"]
+    timeout = test_config["timeout"]
 
     # Create or use test file
     if custom_file:
@@ -52,10 +52,6 @@ def run_single_test(test_num, custom_file=None):
         if not filename:
             print(colored("✗ Failed to create test file", RED))
             return False, 0.0
-
-    # Cleanup server and client
-    cleanup_server()
-    cleanup_client()
 
     # Calculate original MD5
     original_path = f"/app/test/{filename}"
