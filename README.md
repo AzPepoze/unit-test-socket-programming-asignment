@@ -56,7 +56,7 @@ For just the sake just for testing so I just slap to the AI to create this proje
 
 ## Quick Start
 
-### Make sure you have the latest wsl2 kernel
+### Make sure you have the latest wsl2 kernel (Windows only)
 
 ```bashbash
 wsl --update
